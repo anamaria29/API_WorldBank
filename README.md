@@ -304,8 +304,3 @@ Respuesta:
 - Implementar filtros por regiones.
 - Agregar modo oscuro.
 - Incorporar más fuentes de datos internacionales.
-
-
-# 📄 Licencia
-
-Proyecto académico desarrollado con fines educativos.
