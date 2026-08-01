@@ -2,6 +2,13 @@
 
 Dashboard web interactivo para comparar indicadores económicos y sociales entre países utilizando datos oficiales de la **World Bank API**.
 
+## Integrantes
+
+- Aaron Vargas
+- Adrián Gonzalez
+- Ana María Ramírez
+- Kristhel Porras
+
 ## Descripción del proyecto
 
 Global Insights es una aplicación web que permite comparar el desempeño de dos países mediante indicadores internacionales como:
@@ -43,6 +50,10 @@ El producto está orientado a:
 ---
 
 # Arquitectura del sistema
+
+La arquitectura se mantiene deliberadamente pequeña: rutas HTTP, un servicio
+de aplicación y un cliente para la API externa. Consulta
+[`EXPLICACION.md`](EXPLICACION.md) para una guía breve de SOLID, DevOps y SecOps.
 
 ```
 Global Insights
@@ -131,12 +142,14 @@ global-insights/
 │
 ├── backend/
 │
+│   ├── config.py
 │   ├── app.py
+│   ├── services.py
 │   ├── world_bank.py
 │   ├── requirements.txt
 │
 │
-├── frontend/
+├── public/
 │
 │   ├── index.html
 │   │
@@ -145,7 +158,10 @@ global-insights/
 │   │
 │   └── js/
 │         └── app.js
-│
+├── app.py              # Entrada de Vercel
+├── requirements.txt    # Dependencias detectadas por Vercel
+├── vercel.json
+├── Dockerfile
 └── README.md
 ```
 
@@ -163,16 +179,12 @@ git clone <url-del-repositorio>
 
 # Backend
 
-Entrar a la carpeta:
-
-```bash
-cd backend
-```
+Ejecutar los siguientes comandos desde la raíz del proyecto.
 
 Crear entorno virtual:
 
 ```bash
-python -m venv venv
+python -m venv .venv
 ```
 
 Activar entorno:
@@ -180,25 +192,25 @@ Activar entorno:
 ### Mac/Linux
 
 ```bash
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### Windows
 
 ```bash
-venv\Scripts\activate
+.venv\Scripts\activate
 ```
 
 Instalar dependencias:
 
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements-dev.txt
 ```
 
-Ejecutar servidor:
+Ejecutar servidor desde la raíz del proyecto:
 
 ```bash
-python app.py
+python -m backend.app
 ```
 
 El backend estará disponible en:
@@ -214,13 +226,14 @@ http://127.0.0.1:5000
 Abrir la carpeta:
 
 ```
-frontend
+public
 ```
 
-Ejecutar `index.html` mediante:
+Para reproducir localmente el entorno de producción, utilice `vercel dev` o
+`docker compose up --build`. Los archivos estáticos están en `public/`.
 
-- Live Server de VS Code.
-- O un servidor web local.
+Ejecutar `index.html` directamente no permite que las rutas relativas de la API
+sean redirigidas al backend.
 
 ---
 
@@ -287,11 +300,104 @@ Respuesta:
 
 ✔ Separación frontend/backend.  
 ✔ Módulo independiente para consumo de API externa.  
-✔ Manejo de errores en solicitudes HTTP.  
+✔ Manejo de errores tipados en solicitudes HTTP.  
 ✔ Validación de respuestas.  
 ✔ Uso de variables constantes.  
 ✔ Código organizado por responsabilidades.  
 ✔ Uso de JSON como formato de comunicación.  
+✔ Inyección de dependencias mediante un gateway.  
+✔ Configuración mediante variables de entorno.  
+✔ Pruebas unitarias, linting y análisis de seguridad en CI.  
+
+---
+
+# Calidad, seguridad y operaciones
+
+Ejecutar los controles locales desde la raíz del proyecto:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements-dev.txt
+ruff check .
+pytest
+bandit --configfile pyproject.toml --recursive backend
+pip-audit --requirement backend/requirements.txt
+```
+
+La configuración disponible está documentada en `.env.example`. No se deben
+guardar archivos `.env`, credenciales ni entornos virtuales en el repositorio.
+
+Para iniciar ambos servicios en contenedores:
+
+```bash
+docker compose up --build
+```
+
+Frontend: `http://127.0.0.1:8080`  
+API: `http://127.0.0.1:5000`
+
+La imagen del backend se ejecuta con un usuario sin privilegios. Compose limita
+capacidades, monta el filesystem como solo lectura y publica los puertos
+únicamente en localhost. El workflow de CI ejecuta pruebas, lint, Bandit,
+auditoría de dependencias y construcción de la imagen.
+
+---
+
+# Variables de entorno
+
+La aplicación consume una API pública y no requiere API keys ni credenciales.
+Las variables disponibles se documentan en `.env.example`:
+
+| Variable | Descripción | Valor de ejemplo |
+|---|---|---|
+| `WORLD_BANK_BASE_URL` | URL base de la API del Banco Mundial | `https://api.worldbank.org/v2` |
+| `WORLD_BANK_TIMEOUT` | Tiempo máximo de espera por solicitud, en segundos | `10` |
+
+Para utilizar valores diferentes, crear un archivo `.env` local. Este archivo
+está excluido mediante `.gitignore` y nunca debe subirse al repositorio.
+
+---
+
+# Uso de Supabase
+
+Supabase no se utiliza porque Global Insights no necesita almacenar usuarios,
+consultas ni historiales. Los indicadores se consultan en tiempo real desde la
+API pública del Banco Mundial. Evitar una base de datos innecesaria mantiene la
+solución sencilla y reduce su superficie de ataque.
+
+---
+
+# Buenas prácticas de DevOps y SecOps
+
+## DevOps
+
+- Dependencias de producción y desarrollo declaradas por separado.
+- Pruebas, linting y controles de seguridad automatizados con GitHub Actions.
+- Configuración diferenciada para ejecución local, Docker y Vercel.
+- Endpoint `/health` para verificar la disponibilidad del backend.
+- Imagen Docker reproducible y ejecución sin usuario root.
+- Dependabot configurado para proponer actualizaciones.
+
+## SecOps
+
+- Archivos `.env`, entornos virtuales y archivos temporales excluidos de Git.
+- Configuración externa mediante variables de entorno.
+- Validación de códigos de país en el backend.
+- Timeout y validación de las respuestas de la API externa.
+- Mensajes de error públicos controlados; los detalles técnicos quedan en logs.
+- Frontend construido con `textContent`, sin insertar HTML recibido externamente.
+- Contenedores con filesystem de solo lectura y capacidades restringidas.
+- Recomendaciones de seguridad de Vercel y Supabase revisadas.
+
+---
+
+# Producción
+
+La aplicación está preparada para desplegarse como una Flask Function en
+Vercel. El enlace público se agregará aquí después del primer despliegue:
+
+**Vercel:** pendiente de despliegue.
 
 ---
 
@@ -302,5 +408,4 @@ Respuesta:
 - Guardar consultas realizadas.
 - Crear usuarios y perfiles.
 - Implementar filtros por regiones.
-- Agregar modo oscuro.
 - Incorporar más fuentes de datos internacionales.
