@@ -1,4 +1,5 @@
-/* ==========================
+/* Estilos del frontend público
+   ==========================
    VARIABLES
 ========================== */
 
@@ -20,6 +21,15 @@
 
     --radius: 18px;
 
+}
+
+body.dark {
+    --background: #0f172a;
+    --surface: #1e293b;
+    --text: #f8fafc;
+    --muted: #cbd5e1;
+    --border: #475569;
+    --primary-light: #1e3a8a;
 }
 
 
@@ -308,6 +318,21 @@ header {
     transform:
         translateY(-2px);
 
+}
+
+#compareBtn:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.status {
+    min-height: 24px;
+    margin: 16px 7%;
+    color: var(--muted);
+}
+
+.status.error {
+    color: #dc2626;
 }
 
 
