@@ -1,62 +1,101 @@
+"""Flask composition root and HTTP controllers."""
+
+from __future__ import annotations
+
+import logging
+import re
+from typing import Any
+
 from flask import Flask, jsonify, request
-from flask_cors import CORS
 
-from world_bank import get_countries, get_country_summary
+from .config import Config
+from .services import CountryComparisonService
+from .world_bank import (
+    ResourceNotFoundError,
+    WorldBankClient,
+    WorldBankError,
+)
 
-app = Flask(__name__)
-
-CORS(app)
-
-
-@app.route("/")
-def home():
-    return {
-        "message": "Global Insights API funcionando 🚀"
-    }
+COUNTRY_CODE_PATTERN = re.compile(r"^[A-Z]{3}$")
 
 
-@app.route("/countries")
-def countries():
+def create_app(
+    config: type[Config] | dict[str, Any] = Config,
+    service: CountryComparisonService | None = None,
+) -> Flask:
+    app = Flask(__name__)
+    if isinstance(config, type):
+        app.config.from_object(config)
+    else:
+        app.config.update(config)
 
-    try:
+    comparison_service = service or CountryComparisonService(
+        WorldBankClient(
+            base_url=app.config["WORLD_BANK_BASE_URL"],
+            timeout=app.config["WORLD_BANK_TIMEOUT"],
+        )
+    )
 
-        countries = get_countries()
+    @app.after_request
+    def add_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
-        return jsonify(countries)
+    @app.get("/")
+    def home():
+        return jsonify({"message": "Global Insights API funcionando"})
 
-    except Exception as e:
+    @app.get("/health")
+    def health():
+        return jsonify({"status": "ok"})
 
-        return jsonify({
-            "error": str(e)
-        }), 500
+    @app.get("/countries")
+    def countries():
+        return jsonify(comparison_service.list_countries())
 
-@app.route("/compare")
-def compare():
+    @app.get("/compare")
+    def compare():
+        country1 = _validated_country_code(request.args.get("country1"))
+        country2 = _validated_country_code(request.args.get("country2"))
+        if country1 == country2:
+            return jsonify({"error": "Los países deben ser diferentes"}), 400
+        return jsonify(comparison_service.compare(country1, country2))
 
-    country1 = request.args.get("country1")
-    country2 = request.args.get("country2")
+    @app.errorhandler(ValueError)
+    def handle_validation_error(error: ValueError):
+        return jsonify({"error": str(error)}), 400
 
-    if not country1 or not country2:
+    @app.errorhandler(ResourceNotFoundError)
+    def handle_not_found(error: ResourceNotFoundError):
+        return jsonify({"error": str(error)}), 404
 
-        return jsonify({
-            "error": "Debe indicar country1 y country2"
-        }), 400
+    @app.errorhandler(WorldBankError)
+    def handle_provider_error(error: WorldBankError):
+        app.logger.warning("World Bank request failed: %s", error)
+        return jsonify({"error": "El proveedor de datos no está disponible"}), 502
 
-    try:
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error: Exception):
+        app.logger.exception("Unexpected request failure")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
-        data = {
-            "country1": get_country_summary(country1),
-            "country2": get_country_summary(country2)
-        }
+    return app
 
-        return jsonify(data)
 
-    except Exception as e:
+def _validated_country_code(value: str | None) -> str:
+    if value is None:
+        raise ValueError("Debe indicar country1 y country2")
+    normalized = value.strip().upper()
+    if not COUNTRY_CODE_PATTERN.fullmatch(normalized):
+        raise ValueError("Los países deben usar códigos ISO de tres letras")
+    return normalized
 
-        return jsonify({
-            "error": str(e)
-        }), 500
+
+app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
-    
+    logging.basicConfig(level=logging.INFO)
+    app.run(host="127.0.0.1", port=5000, debug=False)
