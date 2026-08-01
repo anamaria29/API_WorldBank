@@ -298,16 +298,16 @@ Respuesta:
 
 # Buenas prácticas aplicadas
 
-✔ Separación frontend/backend.  
-✔ Módulo independiente para consumo de API externa.  
-✔ Manejo de errores tipados en solicitudes HTTP.  
-✔ Validación de respuestas.  
-✔ Uso de variables constantes.  
-✔ Código organizado por responsabilidades.  
-✔ Uso de JSON como formato de comunicación.  
-✔ Inyección de dependencias mediante un gateway.  
-✔ Configuración mediante variables de entorno.  
-✔ Pruebas unitarias, linting y análisis de seguridad en CI.  
+✔ Separación frontend/backend.
+✔ Módulo independiente para consumo de API externa.
+✔ Manejo de errores tipados en solicitudes HTTP.
+✔ Validación de respuestas.
+✔ Uso de variables constantes.
+✔ Código organizado por responsabilidades.
+✔ Uso de JSON como formato de comunicación.
+✔ Inyección de dependencias mediante un gateway.
+✔ Configuración mediante variables de entorno.
+✔ Pruebas unitarias, linting y análisis de seguridad en CI.
 
 ---
 
@@ -334,7 +334,7 @@ Para iniciar ambos servicios en contenedores:
 docker compose up --build
 ```
 
-Frontend: `http://127.0.0.1:8080`  
+Frontend: `http://127.0.0.1:8080`
 API: `http://127.0.0.1:5000`
 
 La imagen del backend se ejecuta con un usuario sin privilegios. Compose limita
