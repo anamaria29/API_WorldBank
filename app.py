@@ -5,5 +5,6 @@ Function. The implementation remains inside the backend package.
 """
 
 from backend.app import app
+from werkzeug.exceptions import HTTPException
 
 __all__ = ["app"]

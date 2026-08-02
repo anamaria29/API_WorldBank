@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from typing import Any
+from werkzeug.exceptions import HTTPException
 
 from flask import Flask, jsonify, request
 
@@ -76,6 +77,10 @@ def create_app(
     def handle_provider_error(error: WorldBankError):
         app.logger.warning("World Bank request failed: %s", error)
         return jsonify({"error": "El proveedor de datos no está disponible"}), 502
+
+    @app.errorhandler(HTTPException)
+    def handle_http_error(error: HTTPException):
+        return jsonify({"error": error.description}), error.code or 500
 
     @app.errorhandler(Exception)
     def handle_unexpected_error(error: Exception):
