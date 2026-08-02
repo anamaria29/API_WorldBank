@@ -75,3 +75,12 @@ def test_provider_errors_do_not_leak_details():
     response = app.test_client().get("/countries")
     assert response.status_code == 502
     assert "sensitive" not in response.get_data(as_text=True)
+
+def test_unknown_route_returns_404(client):
+    response = client.get("/ruta-inexistente")
+
+    assert response.status_code == 404
+    assert response.get_json()["error"] == (
+        "The requested URL was not found on the server. "
+        "If you entered the URL manually please check your spelling and try again."
+    )
