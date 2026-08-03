@@ -2,6 +2,8 @@
 
 Dashboard web interactivo para comparar indicadores económicos y sociales entre países utilizando datos oficiales de la **World Bank API**.
 
+**Aplicación en producción:** [https://api-world-bank1.vercel.app](https://api-world-bank1.vercel.app)
+
 ## Integrantes
 
 - Aaron Vargas
@@ -120,6 +122,25 @@ Documentación:
 https://data.worldbank.org/
 
 La aplicación utiliza endpoints públicos sin necesidad de autenticación.
+
+## Integración con la API externa
+
+El frontend realiza solicitudes al backend Flask mediante rutas relativas del
+mismo dominio. El backend funciona como intermediario y es el único componente
+que se comunica con `https://api.worldbank.org/v2`.
+
+El flujo de una consulta es el siguiente:
+
+1. El frontend solicita al backend la lista de países o una comparación.
+2. El backend valida los códigos ISO de tres letras recibidos.
+3. `WorldBankClient` consulta la API pública del Banco Mundial con un timeout.
+4. `CountryComparisonService` organiza los indicadores obtenidos.
+5. Flask devuelve una respuesta JSON controlada al frontend.
+
+La integración no requiere API keys, contraseñas ni tokens. Si el proveedor no
+responde, devuelve datos inesperados o supera el tiempo máximo, el backend
+registra el detalle técnico en los logs y muestra al usuario un mensaje seguro
+sin revelar información interna.
 
 ---
 
@@ -372,12 +393,16 @@ solución sencilla y reduce su superficie de ataque.
 
 ## DevOps
 
+- Código versionado en GitHub mediante ramas y pull requests.
+- Commits descriptivos y revisión de cambios antes de integrarlos a `main`.
 - Dependencias de producción y desarrollo declaradas por separado.
 - Pruebas, linting y controles de seguridad automatizados con GitHub Actions.
 - Configuración diferenciada para ejecución local, Docker y Vercel.
 - Endpoint `/health` para verificar la disponibilidad del backend.
 - Imagen Docker reproducible y ejecución sin usuario root.
 - Dependabot configurado para proponer actualizaciones.
+- Despliegues de producción reproducibles a partir de la rama `main`.
+- README con instrucciones de instalación, configuración, pruebas y despliegue.
 
 ## SecOps
 
@@ -389,15 +414,54 @@ solución sencilla y reduce su superficie de ataque.
 - Frontend construido con `textContent`, sin insertar HTML recibido externamente.
 - Contenedores con filesystem de solo lectura y capacidades restringidas.
 - Recomendaciones de seguridad de Vercel y Supabase revisadas.
+- Supabase no se incorporó porque la aplicación no almacena información; esto
+  reduce componentes innecesarios y la superficie de ataque.
 
 ---
 
 # Producción
 
-La aplicación está preparada para desplegarse como una Flask Function en
-Vercel. El enlace público se agregará aquí después del primer despliegue:
+La aplicación se encuentra desplegada y disponible públicamente en Vercel:
 
-**Vercel:** pendiente de despliegue.
+**Enlace de producción:**
+[https://api-world-bank1.vercel.app](https://api-world-bank1.vercel.app)
+
+## Resumen del despliegue
+
+- El repositorio de GitHub fue conectado con Vercel.
+- Vercel utiliza Python 3.12 y detecta `app.py` como punto de entrada.
+- Flask se ejecuta como una función de Python en Vercel.
+- Los archivos estáticos del frontend se publican desde `public/`.
+- `requirements.txt` y `pyproject.toml` declaran las dependencias y versión de
+  Python requeridas en producción.
+- El frontend y el backend comparten el dominio de Vercel, por lo que el
+  navegador utiliza rutas relativas como `/countries` y `/compare`.
+- Cada cambio integrado a `main` puede generar un nuevo despliegue y queda
+  asociado a un commit concreto.
+
+## Cómo verificar el despliegue
+
+Estas comprobaciones permiten demostrar que la aplicación y su integración
+externa funcionan correctamente:
+
+| Verificación | URL o acción | Resultado esperado |
+|---|---|---|
+| Interfaz pública | [Abrir la aplicación](https://api-world-bank1.vercel.app) | Carga el dashboard y la lista de países. |
+| Estado del backend | [Consultar `/health`](https://api-world-bank1.vercel.app/health) | Respuesta JSON con `status: ok`. |
+| Integración con World Bank | [Consultar `/countries`](https://api-world-bank1.vercel.app/countries) | Lista extensa de países en formato JSON. |
+| Comparación | [Comparar Costa Rica y Estados Unidos](https://api-world-bank1.vercel.app/compare?country1=CRI&country2=USA) | JSON con ambos países y sus indicadores. |
+
+Además, después de cada despliegue se debe:
+
+1. Confirmar que el despliegue figure como exitoso en Vercel.
+2. Verificar que GitHub Actions muestre en verde las pruebas y controles.
+3. Abrir la aplicación desde internet y realizar una comparación real.
+4. Revisar los logs de Vercel si una ruta responde con error.
+
+El proyecto no utiliza Supabase porque actualmente no guarda usuarios,
+consultas ni historiales. Si en el futuro se incorpora persistencia, deberán
+definirse tablas, políticas Row Level Security y permisos mínimos antes de
+habilitar el acceso desde producción.
 
 ---
 
@@ -409,3 +473,4 @@ Vercel. El enlace público se agregará aquí después del primer despliegue:
 - Crear usuarios y perfiles.
 - Implementar filtros por regiones.
 - Incorporar más fuentes de datos internacionales.
+
